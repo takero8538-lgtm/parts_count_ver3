@@ -151,9 +151,9 @@ window.addEventListener('DOMContentLoaded', () => {
         const dummyInput = tf.zeros([1, 640, 640, 3]);
         model.execute(dummyInput);
       });
-      resultDiv.textContent = 'モデル準備完了（キャッシュから高速起動）';
+      resultDiv.textContent = 'モデル準備完了';
     } catch (cacheError) {
-      resultDiv.textContent = '初期設定中（初回のみ10秒ほどかかります）...';
+      resultDiv.textContent = '初期設定中...';
       try {
         model = await tf.loadGraphModel(folderPath + "model.json");
         await model.save(localIndexedDBPath);
@@ -161,7 +161,7 @@ window.addEventListener('DOMContentLoaded', () => {
           const dummyInput = tf.zeros([1, 640, 640, 3]);
           model.execute(dummyInput);
         });
-        resultDiv.textContent = 'モデル準備完了（ローカルに保存しました）';
+        resultDiv.textContent = 'モデル準備完了';
       } catch (serverError) {
         console.error(serverError);
         resultDiv.textContent = 'モデルの読み込みに失敗しました';
