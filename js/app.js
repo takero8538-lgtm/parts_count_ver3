@@ -36,7 +36,6 @@ if ('serviceWorker' in navigator) {
 
 // ユーザーに「更新ボタン」を出す関数（画面最上部にシンプルなバナーを出します）
 function showUpdateBanner(worker) {
-  // 既にバナーがあれば作らない
   if (document.getElementById('pwa-update-banner')) return;
 
   const banner = document.createElement('div');
@@ -57,7 +56,6 @@ function showUpdateBanner(worker) {
       try {
         const dbs = await indexedDB.databases();
         dbs.forEach(db => {
-          // モデル保存用のIndexedDB（フォルダ名から作られたキー）を狙って削除
           if (db.name.includes('model') || db.name.includes('http')) {
             indexedDB.deleteDatabase(db.name);
           }
@@ -74,11 +72,7 @@ function showUpdateBanner(worker) {
 }
 // ====== 【自動更新検知ロジック】ここまで ======
 
-// ⚠️ここから下は、既存の「tf.env().set...」や「window.addEventListener('DOMContentLoaded', ...」をそのまま残してください。
-
-
-// ⚠️ エラーの原因となった「WEBGL_FORCE_F16_TEXTUREACTIVATE」を削除し、
-// お使いのバージョンでも確実に動く安全な最適化フラグのみに修正しました。
+// 安全な最適化フラグのみ設定
 tf.env().set('WEBGL_PACK', true);
 
 // 画面のすべての要素（HTML）が完全に読み込まれてから安全にプログラムをスタートさせる
@@ -202,7 +196,7 @@ window.addEventListener('DOMContentLoaded', () => {
     captureBtn.disabled = true;
   }
 
-  // IndexedDB高速読み込み版
+  // 🛠️ 改良型：GZIPの自動解凍機能を盛り込んだ IndexedDB 高速読み込み版
   async function loadModelFromFolder(folderPath) {
     if (!folderPath.endsWith('/')) folderPath += '/';
     
@@ -216,17 +210,39 @@ window.addEventListener('DOMContentLoaded', () => {
     await tf.nextFrame();
 
     try {
+      // 先にスマホ内のローカル保存庫（IndexedDB）をチェック
       model = await tf.loadGraphModel(localIndexedDBPath);
       tf.tidy(() => {
         const dummyInput = tf.zeros([1, 640, 640, 3]);
         model.execute(dummyInput);
       });
-      resultDiv.textContent = 'モデル準備完了';
+      resultDiv.textContent = 'モデル準備完了（キャッシュから高速起動）';
     } catch (cacheError) {
-      resultDiv.textContent = '初期設定中...';
+      resultDiv.textContent = '初回モデルダウンロード＆解凍中...';
       try {
-        model = await tf.loadGraphModel(folderPath + "model.json");
+        // 🚀 ここで GitHub から model.json と .bin.gz を読み込み、JavaScript側でリアルタイムに解凍します
+        model = await tf.loadGraphModel(folderPath + "model.json", {
+          fetchFunc: async (url, options) => {
+            const response = await fetch(url, options);
+            
+            // 拡張子が .gz で終わる重みファイル（shardファイル）が来たら自動解凍する
+            if (url.endsWith('.gz')) {
+              console.log(`[pako] 圧縮ファイルを自動解凍中: ${url}`);
+              const arrayBuffer = await response.arrayBuffer();
+              // pakoライブラリを使ってブラウザのメモリ上で復元（展開）
+              const decompressed = pako.ungzip(new Uint8Array(arrayBuffer));
+              
+              return new Response(decompressed, {
+                headers: new Headers({ 'Content-Type': 'application/octet-stream' })
+              });
+            }
+            return response;
+          }
+        });
+
+        // 2回目以降のために、解凍された生のモデルデータをスマホのIndexedDBに記憶させる
         await model.save(localIndexedDBPath);
+        
         tf.tidy(() => {
           const dummyInput = tf.zeros([1, 640, 640, 3]);
           model.execute(dummyInput);
@@ -234,7 +250,7 @@ window.addEventListener('DOMContentLoaded', () => {
         resultDiv.textContent = 'モデル準備完了';
       } catch (serverError) {
         console.error(serverError);
-        resultDiv.textContent = 'モデルの読み込みに失敗しました';
+        resultDiv.textContent = 'モデルの読み込みまたは解凍に失敗しました';
         model = null;
       }
     }
