@@ -1,0 +1,184 @@
+/* ==========================================
+   全般・リセット（スマホ対応の基本）
+   ========================================== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  padding: 12px;           /* スマホ用にタイトに調整 */
+  background-color: #f8f8f8; /* 元の背景色 */
+  color: #333;             /* 元の文字色 */
+  line-height: 1.4;
+}
+
+h1 {
+  color: #00539CFF;        /* 元のメインカラー */
+  font-size: 1.4rem;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+/* ==========================================
+   入力・選択エリア共通（セレクトボックス・スライダー）
+   ========================================== */
+.select-area {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+label {
+  font-weight: bold;       /* 元のスタイル */
+  font-size: 0.9rem;
+}
+
+/* 部品名セレクトボックス */
+select {
+  font-size: 1rem;         /* 元のサイズ */
+  padding: 6px 10px;       /* 元のパディング */
+  width: 100%;
+  height: 42px;            /* スマホでタップしやすい高さ */
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: #333;
+  cursor: pointer;
+  display: block;
+}
+
+/* 閾値調整スライダー */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  background: #ddd;
+  border-radius: 4px;
+  outline: none;
+  margin: 10px 0;
+}
+
+/* スライダーのつまみ部分（スマホで掴みやすく） */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #00539CFF; /* つまみの色をメインカラーに統一 */
+  cursor: pointer;
+}
+
+/* ==========================================
+   ボタンエリアの2×2グリッド化
+   ========================================== */
+.upload-area {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* 横に2等分 */
+  gap: 8px;                       /* ボタン同士の隙間 */
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+/* ファイル選択のラッパー制御 */
+.file-input-wrapper {
+  position: relative;
+  overflow: hidden;
+  display: block;
+  width: 100%;
+}
+
+input[type="file"] {
+  font-size: 100px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+/* ==========================================
+   ボタンスタイル（元の設定をベースにスマホ最適化）
+   ========================================== */
+button, .custom-file-btn {
+  font-size: 1rem;         /* 元のサイズ */
+  padding: 10px 4px;       /* 2x2に収まるパディング */
+  border: 1px solid #ccc;  /* 元の枠線 */
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: #333;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 44px;            /* 高さを統一して押しやすく */
+}
+
+/* カウント開始ボタン（元の色合いをベースに強調） */
+#runBtn {
+  background-color: #00539CFF;
+  color: #ffffff;
+  border: 1px solid #004078;
+}
+
+/* ボタンが非活性（disabled）のとき */
+button:disabled {
+  background-color: #ccc !important; /* 元のグレー色 */
+  color: #666 !important;
+  cursor: not-allowed;
+  border-color: #ccc !important;
+}
+
+/* タップした瞬間のフィードバック */
+button:active:not(:disabled) {
+  opacity: 0.7;
+}
+
+/* ==========================================
+   結果表示（画像の上に配置・元のスタイルベース）
+   ========================================== */
+#result {
+  margin-top: 5px;
+  margin-bottom: 12px;     /* 画像との間に隙間を作る */
+  font-weight: bold;       /* 元のスタイル */
+  font-size: 1.1rem;       /* 元のサイズ */
+  color: #00539CFF;        /* 元のカラー */
+  white-space: pre-wrap;
+}
+
+#result:empty {
+  display: none;
+}
+
+/* ==========================================
+   映像・キャンバス表示
+   ========================================== */
+video {
+  width: 100%;
+  height: auto;
+  display: block;
+  background-color: #000;
+  margin-bottom: 12px;
+  border-radius: 4px;
+}
+
+canvas {
+  border: 1px solid #ccc;  /* 元の枠線 */
+  width: 100%;             /* 横幅いっぱいにフィット */
+  max-width: 100%;         
+  height: auto;            
+  display: block;          
+  background-color: #000;
+  border-radius: 4px;
+}
