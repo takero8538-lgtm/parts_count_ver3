@@ -1,11 +1,81 @@
-// アプリ起動時にService Workerを登録
+// ====== 【自動更新検知ロジック】ここから ======
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./service-worker.js')
-      .then(reg => console.log('Service Worker 登録成功:', reg))
+      .then(reg => {
+        console.log('Service Worker 登録成功');
+
+        // 既に新しいService Workerが待機状態（waiting）の場合
+        if (reg.waiting) {
+          showUpdateBanner(reg.waiting);
+        }
+
+        // 新しいService Workerがインストールされるのを監視
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // 新しいバージョンがダウンロード完了したら案内を表示
+              showUpdateBanner(newWorker);
+            }
+          });
+        });
+      })
       .catch(err => console.error('Service Worker 登録失敗:', err));
   });
+
+  // ページが勝手にリロードされるのを防ぎつつ、制御が移ったら画面を最新にする
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
+  });
 }
+
+// ユーザーに「更新ボタン」を出す関数（画面最上部にシンプルなバナーを出します）
+function showUpdateBanner(worker) {
+  // 既にバナーがあれば作らない
+  if (document.getElementById('pwa-update-banner')) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'pwa-update-banner';
+  banner.innerHTML = `
+    <div style="position: fixed; top: 0; left: 0; width: 100%; background: #2b579a; color: white; text-align: center; padding: 12px; z-index: 9999; box-shadow: 0 2px 10px rgba(0,0,0,0.3); font-family: sans-serif; font-size: 14px;">
+      アプリの新しいバージョンがあります。
+      <button id="pwa-update-btn" style="background: #ffffff; color: #2b579a; border: none; padding: 6px 12px; margin-left: 10px; font-weight: bold; border-radius: 4px; cursor: pointer;">
+        今すぐ更新
+      </button>
+    </div>
+  `;
+  document.body.appendChild(banner);
+
+  document.getElementById('pwa-update-btn').addEventListener('click', async () => {
+    // 1. まずスマホ内部の IndexedDB (古いモデルの記憶) を綺麗さっぱり削除する
+    if (window.indexedDB) {
+      try {
+        const dbs = await indexedDB.databases();
+        dbs.forEach(db => {
+          // モデル保存用のIndexedDB（フォルダ名から作られたキー）を狙って削除
+          if (db.name.includes('model') || db.name.includes('http')) {
+            indexedDB.deleteDatabase(db.name);
+          }
+        });
+        console.log('古いモデルのIndexedDBキャッシュをクリアしました');
+      } catch (e) {
+        console.error('IndexedDBのクリアに失敗:', e);
+      }
+    }
+
+    // 2. 新しいService Workerに「古いゾンビを倒して今すぐ交代しろ」と命令を出す
+    worker.postMessage({ action: 'skipWaiting' });
+  });
+}
+// ====== 【自動更新検知ロジック】ここまで ======
+
+// ⚠️ここから下は、既存の「tf.env().set...」や「window.addEventListener('DOMContentLoaded', ...」をそのまま残してください。
+
 
 // ⚠️ エラーの原因となった「WEBGL_FORCE_F16_TEXTUREACTIVATE」を削除し、
 // お使いのバージョンでも確実に動く安全な最適化フラグのみに修正しました。
