@@ -1,47 +1,55 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>AI 数之助　～KaZnoSKE～</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#007ACC" />
-  <script src="js/tf.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <meta charset="UTF-8" />
+    <title>AI 数之助 ～KaZnoSKE～</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#007ACC" />
+    <script src="js/tf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 </head>
 <body>
-  <h1>AI 数之助　～KaZnoSKE～</h1>
+    <h1>AI 数之助 ～KaZnoSKE～</h1>
 
-  <div class="select-area">
-    <label for="modelSelect">⚙️ 部品名選択：</label>
-    <select id="modelSelect"></select>
-  </div>
-
-  <div class="slider-container" style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 4px; width: 100%;">
-    <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 0.9rem;">
-      <label for="confSlider">🔍 検出感度（閾値）調整：</label>
-      <span id="sliderValue">0.10</span>
+    <div class="select-area">
+        <label for="modelSelect">⚙️ 部品名選択：</label>
+        <select id="modelSelect"></select>
     </div>
-    <input type="range" id="confSlider" min="0.05" max="0.90" step="0.05" value="0.10" style="width: 100%; height: 30px; cursor: pointer;" />
-  </div>
 
-  <div class="upload-area">
-    <div class="file-input-wrapper">
-      <div class="custom-file-btn">📁 画像を選ぶ</div>
-      <input type="file" id="imageInput" accept="image/*" />
+    <div class="slider-container" style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 4px; width: 100%;">
+        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 0.9rem;">
+            <label for="confSlider">🔍 検出感度（閾値）調整：</label>
+            <span id="sliderValue">0.10</span>
+        </div>
+        <input type="range" id="confSlider" min="0.05" max="0.90" step="0.05" value="0.10" style="width: 100%; height: 30px; cursor: pointer;" />
     </div>
-    <button id="startCameraBtn">📸 カメラ起動</button>
-    <button id="captureBtn" disabled>🎯 写真を撮る</button>
-    <button id="runBtn" disabled>🚀 カウント開始</button>
-  </div>
 
-  <div id="result"></div>
+    <div class="slider-container" style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 4px; width: 100%;">
+        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 0.9rem;">
+            <label for="iou-slider">🥞 重なり許容度（IoU）：</label>
+            <span id="iou-value">0.45</span>
+        </div>
+        <input type="range" id="iou-slider" min="0.10" max="0.90" step="0.05" value="0.45" style="width: 100%; height: 30px; cursor: pointer;" />
+    </div>
 
-  <video id="video" autoplay playsinline style="display: none; width: 100%; max-width: 640px; background: #000; margin-bottom: 12px;"></video>
+    <div class="upload-area">
+        <div class="file-input-wrapper">
+            <div class="custom-file-btn">📁 画像を選ぶ</div>
+            <input type="file" id="imageInput" accept="image/*" />
+        </div>
+        <button id="startCameraBtn">📸 カメラ起動</button>
+        <button id="captureBtn" disabled>🎯 写真を撮る</button>
+        <button id="runBtn" disabled>🚀 カウント開始</button>
+    </div>
 
-  <canvas id="canvas"></canvas>
+    <div id="result"></div>
 
-  <script src="js/app.js"></script>
+    <video id="video" autoplay playsinline style="display: none; width: 100%; max-width: 640px; background: #000; margin-bottom: 12px;"></video>
+
+    <canvas id="canvas"></canvas>
+
+    <script src="js/app.js"></script>
 </body>
 </html>
