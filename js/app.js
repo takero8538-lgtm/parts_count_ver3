@@ -5,17 +5,14 @@ if ('serviceWorker' in navigator) {
       .then(reg => {
         console.log('Service Worker 登録成功');
 
-        // 既に新しいService Workerが待機状態（waiting）の場合
         if (reg.waiting) {
           showUpdateBanner(reg.waiting);
         }
 
-        // 新しいService Workerがインストールされるのを監視
         reg.addEventListener('updatefound', () => {
           const newWorker = reg.installing;
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // 新しいバージョンがダウンロード完了したら案内を表示
               showUpdateBanner(newWorker);
             }
           });
@@ -24,7 +21,6 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.error('Service Worker 登録失敗:', err));
   });
 
-  // ページが勝手にリロードされるのを防ぎつつ、制御が移ったら画面を最新にする
   let refreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!refreshing) {
@@ -34,7 +30,6 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// ユーザーに「更新ボタン」を出す関数（画面最上部にシンプルなバナーを出します）
 function showUpdateBanner(worker) {
   if (document.getElementById('pwa-update-banner')) return;
 
@@ -51,33 +46,42 @@ function showUpdateBanner(worker) {
   document.body.appendChild(banner);
 
   document.getElementById('pwa-update-btn').addEventListener('click', async () => {
-    // 1. まずスマホ内部の IndexedDB (古いモデルの記憶) を綺麗さっぱり削除する
+    // 古い IndexedDB モデルデータを全て削除
     if (window.indexedDB) {
       try {
         const dbs = await indexedDB.databases();
-        dbs.forEach(db => {
-          if (db.name.includes('model') || db.name.includes('http')) {
+        for (const db of dbs) {
+          if (db.name.includes('model') || db.name.includes('tensorflowjs')) {
             indexedDB.deleteDatabase(db.name);
+            console.log(`IndexedDB削除: ${db.name}`);
           }
-        });
-        console.log('古いモデルのIndexedDBキャッシュをクリアしました');
+        }
       } catch (e) {
-        console.error('IndexedDBのクリアに失敗:', e);
+        console.error('IndexedDB削除エラー:', e);
       }
     }
 
-    // 2. 新しいService Workerに「古いゾンビを倒して今すぐ交代しろ」と命令を出す
+    // Service Worker のキャッシュストレージをクリア
+    if ('caches' in window) {
+      try {
+        const cacheNames = await caches.keys();
+        for (const name of cacheNames) {
+          await caches.delete(name);
+          console.log(`キャッシュ削除: ${name}`);
+        }
+      } catch (e) {
+        console.error('キャッシュ削除エラー:', e);
+      }
+    }
+
     worker.postMessage({ action: 'skipWaiting' });
   });
 }
 // ====== 【自動更新検知ロジック】ここまで ======
 
-// 安全な最適化フラグのみ設定
 tf.env().set('WEBGL_PACK', true);
 
-// 画面のすべての要素（HTML）が完全に読み込まれてから安全にプログラムをスタートさせる
 window.addEventListener('DOMContentLoaded', () => {
-
   const modelSelect = document.getElementById('modelSelect');
   const imageInput = document.getElementById('imageInput');
   const runBtn = document.getElementById('runBtn');
@@ -89,18 +93,14 @@ window.addEventListener('DOMContentLoaded', () => {
   const captureBtn = document.getElementById('captureBtn');
   const video = document.getElementById('video');
 
-  // スライダー要素の取得
   const confSlider = document.getElementById('confSlider');
   const sliderValue = document.getElementById('sliderValue');
 
   let model = null;
   let imgElement = null;
   let stream = null;
-
-  // リアルタイム処理のために最新の推論生データを保持する変数
   let lastInferenceRawData = null;
 
-  // フォルダから画像が選択された時の処理
   imageInput.addEventListener('change', (evt) => {
     const file = evt.target.files[0];
     if (!file) return;
@@ -125,7 +125,6 @@ window.addEventListener('DOMContentLoaded', () => {
     reader.readAsDataURL(file);
   });
 
-  // カメラ起動ボタンの処理
   startCameraBtn.addEventListener('click', async () => {
     if (stream) {
       stopCamera();
@@ -139,7 +138,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
     canvas.width = 0;
     canvas.height = 0;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -157,7 +155,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 写真を撮るボタンの処理
   captureBtn.addEventListener('click', () => {
     if (!stream) return;
 
@@ -196,13 +193,10 @@ window.addEventListener('DOMContentLoaded', () => {
     captureBtn.disabled = true;
   }
 
-  // 🛠️ 改良型：GZIPの自動解凍機能を盛り込んだ IndexedDB 高速読み込み版
-  async function loadModelFromFolder(folderPath) {
+  // 🔑 改良版：バージョン文字列でキャッシュ判定
+  async function loadModelFromFolder(folderPath, modelVersion) {
     if (!folderPath.endsWith('/')) folderPath += '/';
     
-    const modelKey = folderPath.replace(/[^a-zA-Z0-9]/g, '_');
-    const localIndexedDBPath = `indexeddb://${modelKey}`;
-
     resultDiv.textContent = 'モデルのセットアップ中...';
     runBtn.disabled = true;
     lastInferenceRawData = null;
@@ -210,74 +204,72 @@ window.addEventListener('DOMContentLoaded', () => {
     await tf.nextFrame();
 
     try {
-      // 先にスマホ内のローカル保存庫（IndexedDB）をチェック
-      model = await tf.loadGraphModel(localIndexedDBPath);
+      // 🔑 バージョン文字列を URL に付加（ただし、一度読み込まれたら同じ URL は再利用）
+      const modelJsonUrl = `${folderPath}model.json?v=${modelVersion}`;
+      
+      model = await tf.loadGraphModel(modelJsonUrl, {
+        fetchFunc: async (url, options) => {
+          const response = await fetch(url, {
+            ...options,
+            cache: 'default' // 🔑 デフォルトキャッシュ動作に戻す
+          });
+          
+          // .gz ファイルの自動解凍
+          if (url.includes('.gz')) {
+            console.log(`[pako] 圧縮ファイルを自動解凍中: ${url}`);
+            const arrayBuffer = await response.arrayBuffer();
+            const decompressed = pako.ungzip(new Uint8Array(arrayBuffer));
+            return new Response(decompressed, {
+              headers: new Headers({ 'Content-Type': 'application/octet-stream' })
+            });
+          }
+          return response;
+        }
+      });
+
       tf.tidy(() => {
         const dummyInput = tf.zeros([1, 640, 640, 3]);
         model.execute(dummyInput);
       });
-      resultDiv.textContent = 'モデル準備完了（キャッシュから高速起動）';
-    } catch (cacheError) {
-      resultDiv.textContent = '初回モデルダウンロード＆解凍中...';
-      try {
-        // 🚀 ここで GitHub から model.json と .bin.gz を読み込み、JavaScript側でリアルタイムに解凍します
-        model = await tf.loadGraphModel(folderPath + "model.json", {
-          fetchFunc: async (url, options) => {
-            const response = await fetch(url, options);
-            
-            // 拡張子が .gz で終わる重みファイル（shardファイル）が来たら自動解凍する
-            if (url.endsWith('.gz')) {
-              console.log(`[pako] 圧縮ファイルを自動解凍中: ${url}`);
-              const arrayBuffer = await response.arrayBuffer();
-              // pakoライブラリを使ってブラウザのメモリ上で復元（展開）
-              const decompressed = pako.ungzip(new Uint8Array(arrayBuffer));
-              
-              return new Response(decompressed, {
-                headers: new Headers({ 'Content-Type': 'application/octet-stream' })
-              });
-            }
-            return response;
-          }
-        });
-
-        // 2回目以降のために、解凍された生のモデルデータをスマホのIndexedDBに記憶させる
-        await model.save(localIndexedDBPath);
-        
-        tf.tidy(() => {
-          const dummyInput = tf.zeros([1, 640, 640, 3]);
-          model.execute(dummyInput);
-        });
-        resultDiv.textContent = 'モデル準備完了';
-      } catch (serverError) {
-        console.error(serverError);
-        resultDiv.textContent = 'モデルの読み込みまたは解凍に失敗しました';
-        model = null;
-      }
+      resultDiv.textContent = 'モデル準備完了';
+    } catch (error) {
+      console.error(error);
+      resultDiv.textContent = `モデルの読み込みに失敗しました: ${error.message}`;
+      model = null;
     }
     runBtn.disabled = !(model && imgElement);
   }
 
-  // モデル一覧（json）を読み込んでセレクトボックスを生成する関数
+  // 🔑 改良版：models_list.json を毎回確認（cache: no-store）
   async function loadModelList() {
     try {
-      const response = await fetch('models_list.json');
+      // 【重要】models_list.json は毎回ネットワークから確認
+      const response = await fetch('models_list.json', { cache: 'no-store' });
       const modelList = await response.json();
+      
       modelSelect.innerHTML = '';
       modelList.forEach(m => {
         const option = document.createElement('option');
-        option.value = m.path;
+        option.value = JSON.stringify({ path: m.path, version: m.version });
         option.textContent = m.name;
         modelSelect.appendChild(option);
       });
-      if (modelList.length > 0) await loadModelFromFolder(modelSelect.value);
+      
+      if (modelList.length > 0) {
+        const firstModel = modelList[0];
+        await loadModelFromFolder(firstModel.path, firstModel.version);
+      }
     } catch (error) {
+      console.error(error);
       resultDiv.textContent = 'モデル一覧の読み込みに失敗しました';
     }
   }
 
-  modelSelect.addEventListener('change', () => loadModelFromFolder(modelSelect.value));
+  modelSelect.addEventListener('change', async () => {
+    const selected = JSON.parse(modelSelect.value);
+    await loadModelFromFolder(selected.path, selected.version);
+  });
 
-  // 重たいAI推論の本体
   async function runInference() {
     if (!model || !imgElement) {
       alert('モデルまたは画像がありません。');
@@ -345,7 +337,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // スライダー調整時に一瞬で枠を上書きする関数
   async function refreshBBoxes() {
     if (!imgElement || !lastInferenceRawData) return;
 
@@ -426,7 +417,6 @@ window.addEventListener('DOMContentLoaded', () => {
     resultDiv.textContent = `検出数: ${count}`;
   }
 
-  // スライダーイベントの登録
   confSlider.addEventListener('input', (evt) => {
     sliderValue.textContent = parseFloat(evt.target.value).toFixed(2);
     refreshBBoxes();
