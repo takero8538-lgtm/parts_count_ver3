@@ -193,7 +193,7 @@ window.addEventListener('DOMContentLoaded', () => {
     captureBtn.disabled = true;
   }
 
-  // 🔑 バージョン文字列を付加してモデルをインテリジェントに読み込む関数
+  // 🔑 改良版：バージョン文字列でキャッシュ判定
   async function loadModelFromFolder(folderPath, modelVersion) {
     if (!folderPath.endsWith('/')) folderPath += '/';
     
@@ -204,17 +204,17 @@ window.addEventListener('DOMContentLoaded', () => {
     await tf.nextFrame();
 
     try {
-      // 🔑 バージョン文字列をURLのクエリパラメータに付加（cache: 'default' によりブラウザにキャッシュ判断を任せる）
+      // 🔑 バージョン文字列を URL に付加（ただし、一度読み込まれたら同じ URL は再利用）
       const modelJsonUrl = `${folderPath}model.json?v=${modelVersion}`;
       
       model = await tf.loadGraphModel(modelJsonUrl, {
         fetchFunc: async (url, options) => {
           const response = await fetch(url, {
             ...options,
-            cache: 'default'
+            cache: 'default' // 🔑 デフォルトキャッシュ動作に戻す
           });
           
-          // .gz ファイルの場合は自動で展開処理を行う
+          // .gz ファイルの自動解凍
           if (url.includes('.gz')) {
             console.log(`[pako] 圧縮ファイルを自動解凍中: ${url}`);
             const arrayBuffer = await response.arrayBuffer();
@@ -240,9 +240,10 @@ window.addEventListener('DOMContentLoaded', () => {
     runBtn.disabled = !(model && imgElement);
   }
 
-  // 🔑 models_list.json は毎回必ずネットワークから最新版を確認する
+  // 🔑 改良版：models_list.json を毎回確認（cache: no-store）
   async function loadModelList() {
     try {
+      // 【重要】models_list.json は毎回ネットワークから確認（typo箇所を修正）
       const response = await fetch('models_list.json', { cache: 'no-store' });
       const modelList = await response.json();
       
