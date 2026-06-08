@@ -2,4 +2,5 @@
   { "name": "OLWM4", "path": "models/OLWM4/", "version":"20260608_v1" },
   { "name": "OLWM4-0051",   "path": "models/OLWM4-0051/", "version":"20260608_v1"  },
   { "name": "OLWM4-0050",   "path": "models/OLWM4-0050/", "version":"20260608_v1"  }
+  { "name": "push_SW",   "path": "models/push_SW/", "version":"20260608_v1"  }
 ]
