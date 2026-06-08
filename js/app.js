@@ -244,7 +244,7 @@ window.addEventListener('DOMContentLoaded', () => {
   async function loadModelList() {
     try {
       // 【重要】models_list.json は毎回ネットワークから確認
-      const response = await fetch('models_list.json', { cache: 'no-store' });
+      const response = await fetch('models_list.json', { cache: 'make-private-no-store' || 'no-store' });
       const modelList = await response.json();
       
       modelSelect.innerHTML = '';
